@@ -32,7 +32,7 @@ namespace EffectFarm
 		static void ShowUsage()
 		{
 			Console.WriteLine($"Nursia GltfUtility {Utility.Version}");
-			Console.WriteLine("Usage: nrs-gltf <inputFile> [outputFile] [-t] [-u]");
+			Console.WriteLine("Usage: nrs-gltf <inputFile> <outputFile> [-t] [-u]");
 			Console.WriteLine("-t Generate tangent frames");
 			Console.WriteLine("-u Unwind indices");
 		}
