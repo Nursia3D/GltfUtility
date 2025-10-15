@@ -1,3 +1,7 @@
+[![NuGet](https://img.shields.io/nuget/v/nrs-gltf.svg)](https://www.nuget.org/packages/nrs-gltf/)
+[![Build & Publish Beta](https://github.com/Nursia3D/GltfUtility/actions/workflows/build-and-publish-beta.yml/badge.svg)](https://github.com/Nursia3D/GltfUtility/actions/workflows/build-and-publish-beta.yml)
+[![Chat](https://img.shields.io/discord/628186029488340992.svg)](https://discord.gg/ZeHxhCY)
+
 ### GltfUtility
 Command line utility to manipulate Gltf/Glb files. 
 
