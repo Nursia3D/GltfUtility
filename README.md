@@ -15,7 +15,9 @@ As the only way of doing that - I've found - is through Blender. But it requires
 `nrs-gltf <inputFile> [outputFile] [-t] [-u]`
 
 Both inputFile and outputFile should have either gltf or glb extension.
+
 Flag `-t` generates mikktspace tangents.
+
 Flag `-u` unwinds indices.
 
 Example usage: `nrs-gltf FlightHelmet.gltf FlightHelmet.glb -t`
