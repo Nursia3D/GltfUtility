@@ -7,6 +7,7 @@ using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using static glTFLoader.Schema.Accessor;
+using Buffer = glTFLoader.Schema.Buffer;
 
 namespace DigitalRise
 {
@@ -257,6 +258,9 @@ namespace DigitalRise
 
 				_bufferCache[0] = ms.ToArray();
 				_gltf.Buffers[0].ByteLength = _bufferCache[0].Length;
+
+				// Make sure there's only one buffer
+				_gltf.Buffers = new Buffer[] { _gltf.Buffers[0] };
 			}
 		}
 
