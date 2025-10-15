@@ -16,3 +16,7 @@ Flag `-u` unwinds indices.
 
 Example usage: `nrs-gltf FlightHelmet.gltf FlightHelmet.glb -t`
 
+### Credits
+* [MikkTSpaceSharp](https://github.com/rds1983/MikkTSpaceSharp)
+* [glTFLoader](https://github.com/KhronosGroup/glTF-CSharp-Loader/tree/main/glTFLoader)
+
