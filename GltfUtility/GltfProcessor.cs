@@ -1,13 +1,12 @@
-﻿using System.Collections.Generic;
-using System;
-using System.IO;
-using glTFLoader;
+﻿using glTFLoader;
 using glTFLoader.Schema;
-using System.Runtime.InteropServices;
-
-using static glTFLoader.Schema.Accessor;
 using GltfUtility;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Numerics;
+using System.Runtime.InteropServices;
+using static glTFLoader.Schema.Accessor;
 
 namespace DigitalRise
 {
@@ -135,6 +134,9 @@ namespace DigitalRise
 
 		private void GenerateTangentFrames()
 		{
+			var accessorsToUpdate = new HashSet<int>();
+			var dataToAdd = new List<Tuple<MeshPrimitive, Vector4[]>>();
+
 			foreach (var gltfMesh in _gltf.Meshes)
 			{
 				var meshName = gltfMesh.Name ?? "(unnamed)";
@@ -145,13 +147,6 @@ namespace DigitalRise
 					var hasPositions = primitive.HasAttribute("POSITION");
 					var hasNormals = primitive.HasAttribute("NORMAL");
 					var hasTexCoords = primitive.HasAttribute("TEXCOORD_");
-					var hasTangents = primitive.HasAttribute("TANGENT");
-
-					if (hasTangents)
-					{
-						Log($"Warning: could not generate tangents for mesh {meshName} primitive {primitiveIndex} since it has such channel already");
-						continue;
-					}
 
 					if (!hasPositions)
 					{
@@ -177,22 +172,89 @@ namespace DigitalRise
 					var indices = GetIndices(primitive);
 
 					var tangents = TangentsCalc.Calculate(positions, normals, uvs, indices);
+					dataToAdd.Add(new Tuple<MeshPrimitive, Vector4[]>(primitive, tangents));
 
-					var bufferViews = new List<BufferView>(_gltf.BufferViews);
-					var accessors = new List<Accessor>(_gltf.Accessors);
-					using (var ms = new MemoryStream())
+					if (primitive.HasAttribute("TANGENT"))
 					{
-						ms.Write(GetBuffer(0));
+						Log($"Warning: Mesh {meshName} primitive {primitiveIndex} has tangents channel already. It will be overriden");
+						accessorsToUpdate.Add(primitive.Attributes["TANGENT"]);
+					}
+				}
+			}
 
-						primitive.Attributes["TANGENT"] = ms.WriteData(bufferViews, accessors, tangents);
+			// Now reconstruct the buffer
+			using (var ms = new MemoryStream())
+			{
+				// We must preserve the accessors' order
+				var newBuffersViews = new List<BufferView>();
+				var newAccessors = new List<Accessor>();
+				for (var i = 0; i < _gltf.Accessors.Length; ++i)
+				{
+					var accessor = _gltf.Accessors[i];
 
-						_bufferCache[0] = ms.ToArray();
-						_gltf.Buffers[0].ByteLength = _bufferCache[0].Length;
+					if (!accessorsToUpdate.Contains(i))
+					{
+						var start = (int)ms.Position;
+
+						// Write data
+						var data = GetAccessorData(i);
+						ms.Write(data.Array, data.Offset, data.Count);
+
+						// Create new buffer view
+						var bufferView = new BufferView
+						{
+							ByteOffset = start,
+							ByteLength = data.Count
+						};
+						newBuffersViews.Add(bufferView);
+
+						// Update accessor
+						accessor.BufferView = newBuffersViews.Count - 1;
 					}
 
-					_gltf.BufferViews = bufferViews.ToArray();
-					_gltf.Accessors = accessors.ToArray();
+					newAccessors.Add(accessor);
 				}
+
+				// Write new data
+				foreach (var d in dataToAdd)
+				{
+					var start = (int)ms.Position;
+					ms.WriteData(d.Item2);
+
+					// Create new buffer view
+					var bufferView = new BufferView
+					{
+						ByteOffset = start,
+						ByteLength = (int)ms.Position - start
+					};
+					newBuffersViews.Add(bufferView);
+
+					Accessor accessor;
+					var primitive = d.Item1;
+					if (primitive.HasAttribute("TANGENT"))
+					{
+						// Update existing accessor
+						accessor = newAccessors[primitive.Attributes["TANGENT"]];
+					}
+					else
+					{
+						// Create new one
+						accessor = new Accessor();
+						newAccessors.Add(accessor);
+						primitive.Attributes["TANGENT"] = newAccessors.Count - 1;
+					}
+
+					accessor.ComponentType = ComponentTypeEnum.FLOAT;
+					accessor.Type = TypeEnum.VEC4;
+					accessor.Count = d.Item2.Length;
+					accessor.BufferView = newBuffersViews.Count - 1;
+				}
+
+				_gltf.BufferViews = newBuffersViews.ToArray();
+				_gltf.Accessors = newAccessors.ToArray();
+
+				_bufferCache[0] = ms.ToArray();
+				_gltf.Buffers[0].ByteLength = _bufferCache[0].Length;
 			}
 		}
 
@@ -268,21 +330,6 @@ namespace DigitalRise
 			}
 		}
 
-		private void PremultiplyVertexColors()
-		{
-			foreach (var gltfMesh in _gltf.Meshes)
-			{
-				foreach (var primitive in gltfMesh.Primitives)
-				{
-					var hasColors = primitive.HasAttribute("COLOR");
-					if (!hasColors)
-					{
-						continue;
-					}
-				}
-			}
-		}
-
 		public Gltf Process(Options options)
 		{
 			_bufferCache.Clear();
@@ -293,6 +340,7 @@ namespace DigitalRise
 				_options.OutputFile = _options.InputFile;
 			}
 
+			Log($"Loading model {options.InputFile}...");
 			using (var stream = File.OpenRead(_options.InputFile))
 			{
 				_gltf = Interface.LoadModel(stream);

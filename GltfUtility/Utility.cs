@@ -72,53 +72,19 @@ namespace DigitalRise
 			return ms.ToArray();
 		}
 
-		private unsafe static int WriteData<T>(this Stream output, List<BufferView> bufferViews, List<Accessor> accessors, 
-			void* ptr, int count, TypeEnum type)
+		private unsafe static void WriteData<T>(this Stream output, void* ptr, int count)
 		{
-			var pos = (int)output.Position;
-
 			// Write data to the binary buffer
 			var bytes = new byte[count * Marshal.SizeOf(typeof(T))];
 			Marshal.Copy(new IntPtr(ptr), bytes, 0, bytes.Length);
-
 			output.Write(bytes);
-
-			// Create new buffer view
-			bufferViews.Add(new BufferView { ByteOffset = pos, ByteLength = bytes.Length });
-
-			// Create new accessor
-			accessors.Add(new Accessor
-			{
-				ComponentType = ComponentTypeEnum.FLOAT,
-				Type = type,
-				Count = count,
-				BufferView = bufferViews.Count - 1,
-			});
-
-			return accessors.Count - 1;
 		}
 
-		public unsafe static int WriteData(this Stream output, List<BufferView> bufferViews, List<Accessor> accessors, Vector2[] data)
+		public unsafe static void WriteData(this Stream output, Vector4[] data)
 		{
 			fixed (void* ptr = data)
 			{
-				return output.WriteData<Vector2>(bufferViews, accessors, ptr, data.Length, TypeEnum.VEC2);
-			}
-		}
-
-		public unsafe static int WriteData(this Stream output, List<BufferView> bufferViews, List<Accessor> accessors, Vector3[] data)
-		{
-			fixed (void* ptr = data)
-			{
-				return output.WriteData<Vector3>(bufferViews, accessors, ptr, data.Length, TypeEnum.VEC3);
-			}
-		}
-
-		public unsafe static int WriteData(this Stream output, List<BufferView> bufferViews, List<Accessor> accessors, Vector4[] data)
-		{
-			fixed (void* ptr = data)
-			{
-				return output.WriteData<Vector4>(bufferViews, accessors, ptr, data.Length, TypeEnum.VEC4);
+				output.WriteData<Vector4>(ptr, data.Length);
 			}
 		}
 	}
