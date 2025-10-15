@@ -191,7 +191,6 @@ namespace DigitalRise
 				for (var i = 0; i < _gltf.Accessors.Length; ++i)
 				{
 					var accessor = _gltf.Accessors[i];
-
 					if (!accessorsToUpdate.Contains(i))
 					{
 						var start = (int)ms.Position;
@@ -209,6 +208,8 @@ namespace DigitalRise
 						newBuffersViews.Add(bufferView);
 
 						// Update accessor
+						// Now each accessor has its own buffer view, so all byte offsets should be zeroed
+						accessor.ByteOffset = 0;
 						accessor.BufferView = newBuffersViews.Count - 1;
 					}
 
@@ -244,6 +245,7 @@ namespace DigitalRise
 						primitive.Attributes["TANGENT"] = newAccessors.Count - 1;
 					}
 
+					accessor.ByteOffset = 0;
 					accessor.ComponentType = ComponentTypeEnum.FLOAT;
 					accessor.Type = TypeEnum.VEC4;
 					accessor.Count = d.Item2.Length;
