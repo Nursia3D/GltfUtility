@@ -22,6 +22,7 @@ namespace DigitalRise
 		{
 			if (string.IsNullOrEmpty(path))
 			{
+				// glb
 				using (var stream = File.OpenRead(_options.InputFile))
 				{
 					return Interface.LoadBinaryBuffer(stream);
@@ -327,47 +328,52 @@ namespace DigitalRise
 				_gltf = Interface.LoadModel(stream);
 			}
 
-			// Load all buffers and erase their uris(required for SaveBinaryModel to work)
-/*			for (var i = 0; i < _gltf.Buffers.Length; ++i)
-			{
-				GetBuffer(i);
-				_gltf.Buffers[i].Uri = null;
-			}*/
-
 			if (_options.Tangent)
 			{
+				Log("Generating tangents...");
 				GenerateTangentFrames();
 			}
 
 			if (_options.Unwind)
 			{
+				Log("Unwinding indices...");
 				UnwindIndices();
 			}
 
-			if (_options.Premultiply)
+			var outputExt = Path.GetExtension(options.OutputFile).ToLower();
+			if (outputExt == ".glb")
 			{
-				PremultiplyVertexColors();
-			}
-
-			if (_options.Scale != null)
-			{
-				foreach (var node in _gltf.Nodes)
+				// Load all buffers and erase their uris(required for SaveBinaryModel to work)
+				for (var i = 0; i < _gltf.Buffers.Length; ++i)
 				{
-					if (node.Mesh != null)
-					{
-						for (var i = 0; i < node.Scale.Length; ++i)
-						{
-							node.Scale[i] *= _options.Scale.Value;
-						}
-					}
+					GetBuffer(i);
+					_gltf.Buffers[i].Uri = null;
 				}
-			}
 
-			if (_options.OutputFile.EndsWith(".glb"))
-			{
 				Interface.SaveBinaryModel(_gltf, GetBuffer(0), _options.OutputFile);
 			} else
 			{
+				var outputFolder = Path.GetDirectoryName(options.OutputFile);
+				var outputName = Path.GetFileNameWithoutExtension(options.OutputFile);
+				var nameChanged = Path.GetFileNameWithoutExtension(options.InputFile) !=  outputName;
+
+				for (var i = 0; i < _gltf.Buffers.Length; ++i)
+				{
+					var b = _gltf.Buffers[i];
+
+					if (nameChanged)
+					{
+						// Change name of the binary
+						b.Uri = $"{outputName}.bin";
+					}
+					
+					var buffer = GetBuffer(i);
+
+					var fullUri = Path.Combine(outputFolder, b.Uri);
+					File.WriteAllBytes(fullUri, buffer);
+					Log($"Wrote {fullUri}");
+				}
+
 				Interface.SaveModel(_gltf, _options.OutputFile);
 			}
 

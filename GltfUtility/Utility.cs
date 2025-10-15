@@ -1,17 +1,29 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics;
+﻿using glTFLoader.Schema;
 using System;
-using System.Linq;
-using glTFLoader.Schema;
-using System.Numerics;
-using static glTFLoader.Schema.Accessor;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using static glTFLoader.Schema.Accessor;
 
 namespace DigitalRise
 {
 	internal static class Utility
 	{
+		public static string Version
+		{
+			get
+			{
+				var assembly = typeof(Utility).Assembly;
+				var name = new AssemblyName(assembly.FullName);
+
+				return name.Version.ToString();
+			}
+		}
+
 		private static readonly int[] ComponentsCount = new[]
 		{
 			1,
