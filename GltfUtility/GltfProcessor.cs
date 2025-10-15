@@ -3,11 +3,11 @@ using System;
 using System.IO;
 using glTFLoader;
 using glTFLoader.Schema;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
 using static glTFLoader.Schema.Accessor;
 using GltfUtility;
+using System.Numerics;
 
 namespace DigitalRise
 {
@@ -89,139 +89,109 @@ namespace DigitalRise
 			return result;
 		}
 
+		private uint[] GetIndices(MeshPrimitive primitive)
+		{
+			var indexAccessor = _gltf.Accessors[primitive.Indices.Value];
+			if (indexAccessor.Type != TypeEnum.SCALAR)
+			{
+				throw new NotSupportedException("Only scalar index buffer are supported");
+			}
+
+			if (indexAccessor.ComponentType != ComponentTypeEnum.SHORT &&
+				indexAccessor.ComponentType != ComponentTypeEnum.UNSIGNED_SHORT &&
+				indexAccessor.ComponentType != ComponentTypeEnum.UNSIGNED_INT)
+			{
+				throw new NotSupportedException($"Index of type {indexAccessor.ComponentType} isn't supported");
+			}
+
+			var indices = new List<uint>();
+			if (indexAccessor.ComponentType == ComponentTypeEnum.SHORT)
+			{
+				var data = GetAccessorAs<short>(primitive.Indices.Value);
+				for (var i = 0; i < data.Length; ++i)
+				{
+					indices.Add((uint)data[i]);
+				}
+			}
+			else if (indexAccessor.ComponentType == ComponentTypeEnum.UNSIGNED_SHORT)
+			{
+				var data = GetAccessorAs<ushort>(primitive.Indices.Value);
+				for (var i = 0; i < data.Length; ++i)
+				{
+					indices.Add(data[i]);
+				}
+			}
+			else
+			{
+				var data = GetAccessorAs<uint>(primitive.Indices.Value);
+				for (var i = 0; i < data.Length; ++i)
+				{
+					indices.Add((uint)data[i]);
+				}
+			}
+
+			return indices.ToArray();
+		}
+
 		private void GenerateTangentFrames()
 		{
 			foreach (var gltfMesh in _gltf.Meshes)
 			{
-				var meshName = gltfMesh.Name ?? "null";
+				var meshName = gltfMesh.Name ?? "(unnamed)";
 
 				for (var primitiveIndex = 0; primitiveIndex < gltfMesh.Primitives.Length; primitiveIndex++)
 				{
 					var primitive = gltfMesh.Primitives[primitiveIndex];
+					var hasPositions = primitive.HasAttribute("POSITION");
 					var hasNormals = primitive.HasAttribute("NORMAL");
-					var hasTangents = primitive.HasAttribute("_TANGENT");
-					var hasBinormals = primitive.HasAttribute("_BINORMAL");
+					var hasTexCoords = primitive.HasAttribute("TEXCOORD_");
+					var hasTangents = primitive.HasAttribute("TANGENT");
 
-					if (!hasTangents || !hasBinormals)
+					if (hasTangents)
 					{
-						var hasPositions = primitive.HasAttribute("POSITION");
-						var hasTexCoords = primitive.HasAttribute("TEXCOORD_");
-
-						if (!hasPositions)
-						{
-							Log($"Warning: can't generate the tangent frames, since {primitive}'s primitive of Mesh {meshName} lacks positions.");
-							return;
-						}
-
-						if (!hasNormals)
-						{
-							Log($"Warning: {primitive}'s primitive of Mesh {meshName} lacks normals. It would be generated");
-						}
-
-						if (!hasTexCoords)
-						{
-							Log($"Warning: {primitive}'s primitive of Mesh {meshName} lacks texCoords. Using default zero to generate the tangent frames");
-						}
-
-
-						var positions = GetAccessorAs<Vector3>(primitive.FindAttribute("POSITION"));
-
-						Vector2[] texCoords;
-
-						if (hasTexCoords)
-						{
-							texCoords = GetAccessorAs<Vector2>(primitive.FindAttribute("TEXCOORD_"));
-						}
-						else
-						{
-							texCoords = new Vector2[positions.Length];
-						}
-
-						var indexAccessor = _gltf.Accessors[primitive.Indices.Value];
-						if (indexAccessor.Type != TypeEnum.SCALAR)
-						{
-							throw new NotSupportedException("Only scalar index buffer are supported");
-						}
-
-						if (indexAccessor.ComponentType != ComponentTypeEnum.SHORT &&
-							indexAccessor.ComponentType != ComponentTypeEnum.UNSIGNED_SHORT &&
-							indexAccessor.ComponentType != ComponentTypeEnum.UNSIGNED_INT)
-						{
-							throw new NotSupportedException($"Index of type {indexAccessor.ComponentType} isn't supported");
-						}
-
-						var indices = new List<int>();
-						if (indexAccessor.ComponentType == ComponentTypeEnum.SHORT)
-						{
-							var data = GetAccessorAs<short>(primitive.Indices.Value);
-							for (var i = 0; i < data.Length; ++i)
-							{
-								indices.Add(data[i]);
-							}
-						}
-						else if (indexAccessor.ComponentType == ComponentTypeEnum.UNSIGNED_SHORT)
-						{
-							var data = GetAccessorAs<ushort>(primitive.Indices.Value);
-							for (var i = 0; i < data.Length; ++i)
-							{
-								indices.Add(data[i]);
-							}
-						}
-						else
-						{
-							var data = GetAccessorAs<uint>(primitive.Indices.Value);
-							for (var i = 0; i < data.Length; ++i)
-							{
-								indices.Add((int)data[i]);
-							}
-						}
-
-						Vector3[] normals;
-						if (!hasNormals)
-						{
-							normals = Utility.ComputeNormalsWeightedByAngle(positions, indices, false);
-						}
-						else
-						{
-							normals = GetAccessorAs<Vector3>(primitive.FindAttribute("NORMAL"));
-						}
-
-						Vector3[] tangents, bitangents;
-						Utility.CalculateTangentFrames(positions, indices, normals, texCoords, out tangents, out bitangents);
-
-						var bufferViews = new List<BufferView>(_gltf.BufferViews);
-						var accessors = new List<Accessor>(_gltf.Accessors);
-						using (var ms = new MemoryStream())
-						{
-							ms.Write(GetBuffer(0));
-
-							if (!hasTexCoords)
-							{
-								primitive.Attributes["TEXCOORD_0"] = ms.WriteData(bufferViews, accessors, texCoords);
-							}
-
-							if (!hasNormals)
-							{
-								primitive.Attributes["NORMAL"] = ms.WriteData(bufferViews, accessors, normals);
-							}
-
-							if (!hasTangents)
-							{
-								primitive.Attributes["_TANGENT"] = ms.WriteData(bufferViews, accessors, tangents);
-							}
-
-							if (!hasBinormals)
-							{
-								primitive.Attributes["_BINORMAL"] = ms.WriteData(bufferViews, accessors, bitangents);
-							}
-
-							_bufferCache[0] = ms.ToArray();
-							_gltf.Buffers[0].ByteLength = _bufferCache[0].Length;
-						}
-
-						_gltf.BufferViews = bufferViews.ToArray();
-						_gltf.Accessors = accessors.ToArray();
+						Log($"Warning: could not generate tangents for mesh {meshName} primitive {primitiveIndex} since it has such channel already");
+						continue;
 					}
+
+					if (!hasPositions)
+					{
+						Log($"Warning: could not generate tangents for mesh {meshName} primitive {primitiveIndex} since it lacks positions channel");
+						continue;
+					}
+
+					if (!hasNormals)
+					{
+						Log($"Warning: could not generate tangents for mesh {meshName} primitive {primitiveIndex} since it lacks normals channel");
+						continue;
+					}
+
+					if (!hasTexCoords)
+					{
+						Log($"Warning: could not generate tangents for mesh {meshName} primitive {primitiveIndex} since it lacks uvs channel");
+						continue;
+					}
+
+					var positions = GetAccessorAs<Vector3>(primitive.FindAttribute("POSITION"));
+					var uvs = GetAccessorAs<Vector2>(primitive.FindAttribute("TEXCOORD_"));
+					var normals = GetAccessorAs<Vector3>(primitive.FindAttribute("NORMAL"));
+					var indices = GetIndices(primitive);
+
+					var tangents = TangentsCalc.Calculate(positions, normals, uvs, indices);
+
+					var bufferViews = new List<BufferView>(_gltf.BufferViews);
+					var accessors = new List<Accessor>(_gltf.Accessors);
+					using (var ms = new MemoryStream())
+					{
+						ms.Write(GetBuffer(0));
+
+						primitive.Attributes["TANGENT"] = ms.WriteData(bufferViews, accessors, tangents);
+
+						_bufferCache[0] = ms.ToArray();
+						_gltf.Buffers[0].ByteLength = _bufferCache[0].Length;
+					}
+
+					_gltf.BufferViews = bufferViews.ToArray();
+					_gltf.Accessors = accessors.ToArray();
 				}
 			}
 		}
@@ -351,11 +321,12 @@ namespace DigitalRise
 				}
 
 				Interface.SaveBinaryModel(_gltf, GetBuffer(0), _options.OutputFile);
-			} else
+			}
+			else
 			{
 				var outputFolder = Path.GetDirectoryName(options.OutputFile);
 				var outputName = Path.GetFileNameWithoutExtension(options.OutputFile);
-				var nameChanged = Path.GetFileNameWithoutExtension(options.InputFile) !=  outputName;
+				var nameChanged = Path.GetFileNameWithoutExtension(options.InputFile) != outputName;
 
 				for (var i = 0; i < _gltf.Buffers.Length; ++i)
 				{
@@ -366,7 +337,7 @@ namespace DigitalRise
 						// Change name of the binary
 						b.Uri = $"{outputName}.bin";
 					}
-					
+
 					var buffer = GetBuffer(i);
 
 					var fullUri = Path.Combine(outputFolder, b.Uri);
