@@ -39,6 +39,12 @@ namespace EffectFarm
 
 		static int Process(string[] args)
 		{
+			if (args.Length < 2)
+			{
+				ShowUsage();
+				return ERROR_SUCCESS;
+			}
+
 			var options = new Options();
 			for (var i = 0; i < args.Length; ++i)
 			{
@@ -80,21 +86,18 @@ namespace EffectFarm
 			if (string.IsNullOrEmpty(options.InputFile))
 			{
 				Console.WriteLine("Input file isn't set");
-				ShowUsage();
 				return ERROR_BAD_ARGUMENTS;
 			}
 
 			if (!File.Exists(options.InputFile))
 			{
 				Console.WriteLine($"Input file {options.InputFile} doesn't exist");
-				ShowUsage();
 				return ERROR_BAD_ARGUMENTS;
 			}
 
 			if (string.IsNullOrEmpty(options.OutputFile))
 			{
 				Console.WriteLine("Output file isn't set");
-				ShowUsage();
 				return ERROR_BAD_ARGUMENTS;
 			}
 
@@ -102,7 +105,6 @@ namespace EffectFarm
 			if (ext != ".gltf" && ext != ".glb")
 			{
 				Console.WriteLine("Output file extension should be either gltf or glb");
-				ShowUsage();
 				return ERROR_BAD_ARGUMENTS;
 			}
 
