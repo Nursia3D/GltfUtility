@@ -21,4 +21,4 @@ jobs:
     - name: Install NuGet
       uses: NuGet/setup-nuget@v1
     - name: Publish GltfUtility to NuGet
-      run: nuget.exe push GltfUtility\bin\Release\GltfUtility.*.nupkg ${{secrets.NUGET_APIKEY}} -Source https://api.nuget.org/v3/index.json
+      run: nuget.exe push GltfUtility\bin\Release\nrs-gltf.*.nupkg ${{secrets.NUGET_APIKEY}} -Source https://api.nuget.org/v3/index.json
