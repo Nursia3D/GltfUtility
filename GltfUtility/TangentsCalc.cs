@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MikkTSpaceSharp;
+using System;
 using System.Numerics;
 using static MikkTSpaceSharp.MikkTSpace;
 
@@ -54,7 +55,7 @@ namespace GltfUtility
 			};
 
 			var r = genTangSpaceDefault(ctx);
-			if (r == 0)
+			if (!r)
 			{
 				throw new Exception("Tangents generation failed");
 			}
