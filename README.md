@@ -5,7 +5,7 @@
 ### GltfUtility
 Command line utility to manipulate Gltf/Glb files. 
 
-It's only purpose is ro provide an easy way of adding mikktspace tangents to GLTF/GLB.
+It's only purpose is providing an easy way of adding mikktspace tangents to GLTF/GLB.
 
 As the only way of doing that - I've found - is through Blender. But it requires too much effort. Especially when you have to deal with many models.
 
