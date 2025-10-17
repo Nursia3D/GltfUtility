@@ -386,13 +386,13 @@ namespace DigitalRise
 				{
 					var b = _gltf.Buffers[i];
 
+					var buffer = GetBuffer(i);
+
 					if (nameChanged)
 					{
 						// Change name of the binary
 						b.Uri = $"{outputName}.bin";
 					}
-
-					var buffer = GetBuffer(i);
 
 					var fullUri = Path.Combine(outputFolder, b.Uri);
 					File.WriteAllBytes(fullUri, buffer);
